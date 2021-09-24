@@ -100,9 +100,11 @@ if __name__ == '__main__':
     y = to_categorical(final_age_cat, num_classes=len(set(age_cat)))
 
     if os.path.isfile('./images_np.csv'):
-        load_images = np.loadtxt('./images_np.csv', delimiter=',', dtype=np.int)
+        loaded_images = np.loadtxt('./images_np.csv', delimiter=',', dtype=np.int)
+        if len(load_images) < 50000:
+            loaded_images = load_images(wiki_dir, images, (image_shape[0], image_shape[1]), len(loaded_images))
     else: 
-        loaded_images = load_images(wiki_dir, images, (image_shape[0], image_shape[1]))
+        loaded_images = load_images(wiki_dir, images, (image_shape[0], image_shape[1]), 0)
 
     # Implement label smoothing
     real_labels = np.ones((batch_size, 1), dtype=np.float32) * 0.9

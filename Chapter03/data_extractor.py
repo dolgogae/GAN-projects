@@ -64,12 +64,17 @@ def age_to_category(age_list):
     return age_list1
 
 
-def load_images(data_dir, image_paths, image_shape):
+def load_images(data_dir, image_paths, image_shape, len):
     images = None
 
     for i, image_path in enumerate(image_paths):
+        if i < len :
+            continue
+
         if i % 1000 == 0:
             print("success load {num} images".format(num=i))
+            np.savetxt('./images_np.csv', images, delimiter=',')
+            
         try:
             # Load image
             loaded_image = image.load_img(os.path.join(data_dir, image_path), target_size=image_shape)

@@ -8,3 +8,5 @@ Steps to set up the project:
 3. Create essential folders like 1. logs 2. results 3. data
 4. Download dataset to data directory
 5. Train the model by executing "python3 run.py"
+
+> 21.09.24  divide files and save func. image numpy array 
