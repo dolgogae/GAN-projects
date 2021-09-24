@@ -1,272 +1,17 @@
 import os
-import os
 import time
-from datetime import datetime
 
 import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
 from keras import Input, Model
-from keras.applications import InceptionResNetV2
 from keras.callbacks import TensorBoard
-from keras.layers import Conv2D, Flatten, Dense, BatchNormalization, Reshape, concatenate, LeakyReLU, Lambda, \
-    K, Activation, UpSampling2D, Dropout
+from keras.layers import Lambda, K
 from keras.optimizers import Adam
 from keras.utils import to_categorical
-from keras_preprocessing import image
-from scipy.io import loadmat
 
-
-def build_encoder():
-    """
-    Encoder Network
-    """
-    input_layer = Input(shape=(64, 64, 3))
-
-    # 1st Convolutional Block
-    enc = Conv2D(filters=32, kernel_size=5, strides=2, padding='same')(input_layer)
-    # enc = BatchNormalization()(enc)
-    enc = LeakyReLU(alpha=0.2)(enc)
-
-    # 2nd Convolutional Block
-    enc = Conv2D(filters=64, kernel_size=5, strides=2, padding='same')(enc)
-    enc = BatchNormalization()(enc)
-    enc = LeakyReLU(alpha=0.2)(enc)
-
-    # 3rd Convolutional Block
-    enc = Conv2D(filters=128, kernel_size=5, strides=2, padding='same')(enc)
-    enc = BatchNormalization()(enc)
-    enc = LeakyReLU(alpha=0.2)(enc)
-
-    # 4th Convolutional Block
-    enc = Conv2D(filters=256, kernel_size=5, strides=2, padding='same')(enc)
-    enc = BatchNormalization()(enc)
-    enc = LeakyReLU(alpha=0.2)(enc)
-
-    # Flatten layer
-    enc = Flatten()(enc)
-
-    # 1st Fully Connected Layer
-    enc = Dense(4096)(enc)
-    enc = BatchNormalization()(enc)
-    enc = LeakyReLU(alpha=0.2)(enc)
-
-    # Second Fully Connected Layer
-    enc = Dense(100)(enc)
-
-    # Create a model
-    model = Model(inputs=[input_layer], outputs=[enc])
-    return model
-
-
-def build_generator():
-    """
-    Create a Generator Model with hyperparameters values defined as follows
-    """
-    latent_dims = 100
-    num_classes = 6
-
-    input_z_noise = Input(shape=(latent_dims,))
-    input_label = Input(shape=(num_classes,))
-
-    x = concatenate([input_z_noise, input_label])
-
-    x = Dense(2048, input_dim=latent_dims + num_classes)(x)
-    x = LeakyReLU(alpha=0.2)(x)
-    x = Dropout(0.2)(x)
-
-    x = Dense(256 * 8 * 8)(x)
-    x = BatchNormalization()(x)
-    x = LeakyReLU(alpha=0.2)(x)
-    x = Dropout(0.2)(x)
-
-    x = Reshape((8, 8, 256))(x)
-
-    x = UpSampling2D(size=(2, 2))(x)
-    x = Conv2D(filters=128, kernel_size=5, padding='same')(x)
-    x = BatchNormalization(momentum=0.8)(x)
-    x = LeakyReLU(alpha=0.2)(x)
-
-    x = UpSampling2D(size=(2, 2))(x)
-    x = Conv2D(filters=64, kernel_size=5, padding='same')(x)
-    x = BatchNormalization(momentum=0.8)(x)
-    x = LeakyReLU(alpha=0.2)(x)
-
-    x = UpSampling2D(size=(2, 2))(x)
-    x = Conv2D(filters=3, kernel_size=5, padding='same')(x)
-    x = Activation('tanh')(x)
-
-    model = Model(inputs=[input_z_noise, input_label], outputs=[x])
-    return model
-
-
-def expand_label_input(x):
-    x = K.expand_dims(x, axis=1)
-    x = K.expand_dims(x, axis=1)
-    x = K.tile(x, [1, 32, 32, 1])
-    return x
-
-
-def build_discriminator():
-    """
-    Create a Discriminator Model with hyperparameters values defined as follows
-    """
-    input_shape = (64, 64, 3)
-    label_shape = (6,)
-    image_input = Input(shape=input_shape)
-    label_input = Input(shape=label_shape)
-
-    x = Conv2D(64, kernel_size=3, strides=2, padding='same')(image_input)
-    x = LeakyReLU(alpha=0.2)(x)
-
-    label_input1 = Lambda(expand_label_input)(label_input)
-    x = concatenate([x, label_input1], axis=3)
-
-    x = Conv2D(128, kernel_size=3, strides=2, padding='same')(x)
-    x = BatchNormalization()(x)
-    x = LeakyReLU(alpha=0.2)(x)
-
-    x = Conv2D(256, kernel_size=3, strides=2, padding='same')(x)
-    x = BatchNormalization()(x)
-    x = LeakyReLU(alpha=0.2)(x)
-
-    x = Conv2D(512, kernel_size=3, strides=2, padding='same')(x)
-    x = BatchNormalization()(x)
-    x = LeakyReLU(alpha=0.2)(x)
-
-    x = Flatten()(x)
-    x = Dense(1, activation='sigmoid')(x)
-
-    model = Model(inputs=[image_input, label_input], outputs=[x])
-    return model
-
-
-def build_fr_combined_network(encoder, generator, fr_model):
-    input_image = Input(shape=(64, 64, 3))
-    input_label = Input(shape=(6,))
-
-    latent0 = encoder(input_image)
-
-    gen_images = generator([latent0, input_label])
-
-    fr_model.trainable = False
-
-    resized_images = Lambda(lambda x: K.resize_images(gen_images, height_factor=2, width_factor=2,
-                                                      data_format='channels_last'))(gen_images)
-    embeddings = fr_model(resized_images)
-
-    model = Model(inputs=[input_image, input_label], outputs=[embeddings])
-    return model
-
-
-def build_fr_model(input_shape):
-    resent_model = InceptionResNetV2(include_top=False, weights='imagenet', input_shape=input_shape, pooling='avg')
-    image_input = resent_model.input
-    x = resent_model.layers[-1].output
-    out = Dense(128)(x)
-    embedder_model = Model(inputs=[image_input], outputs=[out])
-
-    input_layer = Input(shape=input_shape)
-
-    x = embedder_model(input_layer)
-    output = Lambda(lambda x: K.l2_normalize(x, axis=-1))(x)
-
-    model = Model(inputs=[input_layer], outputs=[output])
-    return model
-
-
-def build_image_resizer():
-    input_layer = Input(shape=(64, 64, 3))
-
-    resized_images = Lambda(lambda x: K.resize_images(x, height_factor=3, width_factor=3,
-                                                      data_format='channels_last'))(input_layer)
-
-    model = Model(inputs=[input_layer], outputs=[resized_images])
-    return model
-
-
-def calculate_age(taken, dob):
-    birth = datetime.fromordinal(max(int(dob) - 366, 1))
-
-    if birth.month < 7:
-        return taken - birth.year
-    else:
-        return taken - birth.year - 1
-
-
-def load_data(wiki_dir, dataset='wiki'):
-    # Load the wiki.mat file
-    meta = loadmat(os.path.join(wiki_dir, "{}.mat".format(dataset)))
-
-    # Load the list of all files
-    full_path = meta[dataset][0, 0]["full_path"][0]
-
-    # List of Matlab serial date numbers
-    dob = meta[dataset][0, 0]["dob"][0]
-
-    # List of years when photo was taken
-    photo_taken = meta[dataset][0, 0]["photo_taken"][0]  # year
-
-    # Calculate age for all dobs
-    age = [calculate_age(photo_taken[i], dob[i]) for i in range(len(dob))]
-
-    # Create a list of tuples containing a pair of an image path and age
-    images = []
-    age_list = []
-    for index, image_path in enumerate(full_path):
-        images.append(image_path[0])
-        age_list.append(age[index])
-
-    # Return a list of all images and respective age
-    return images, age_list
-
-
-def age_to_category(age_list):
-    age_list1 = []
-
-    for age in age_list:
-        if 0 < age <= 18:
-            age_category = 0
-        elif 18 < age <= 29:
-            age_category = 1
-        elif 29 < age <= 39:
-            age_category = 2
-        elif 39 < age <= 49:
-            age_category = 3
-        elif 49 < age <= 59:
-            age_category = 4
-        elif age >= 60:
-            age_category = 5
-
-        age_list1.append(age_category)
-
-    return age_list1
-
-
-def load_images(data_dir, image_paths, image_shape):
-    images = None
-
-    for i, image_path in enumerate(image_paths):
-        print()
-        try:
-            # Load image
-            loaded_image = image.load_img(os.path.join(data_dir, image_path), target_size=image_shape)
-
-            # Convert PIL image to numpy ndarray
-            loaded_image = image.img_to_array(loaded_image)
-
-            # Add another dimension (Add batch dimension)
-            loaded_image = np.expand_dims(loaded_image, axis=0)
-
-            # Concatenate all images into one tensor
-            if images is None:
-                images = loaded_image
-            else:
-                images = np.concatenate([images, loaded_image], axis=0)
-        except Exception as e:
-            print("Error:", i, e)
-
-    return images
+from data_extractor import load_data, load_images, age_to_category
+from builder import build_encoder, build_generator, build_discriminator, build_fr_model, build_image_resizer
 
 
 def euclidean_distance_loss(y_true, y_pred):
@@ -354,7 +99,10 @@ if __name__ == '__main__':
     classes = len(set(age_cat))
     y = to_categorical(final_age_cat, num_classes=len(set(age_cat)))
 
-    loaded_images = load_images(wiki_dir, images, (image_shape[0], image_shape[1]))
+    if os.path.isfile('./images_np.csv'):
+        load_images = np.loadtxt('./images_np.csv', delimiter=',', dtype=np.int)
+    else: 
+        loaded_images = load_images(wiki_dir, images, (image_shape[0], image_shape[1]))
 
     # Implement label smoothing
     real_labels = np.ones((batch_size, 1), dtype=np.float32) * 0.9
