@@ -64,20 +64,18 @@ def age_to_category(age_list):
     return age_list1
 
 
-def load_images(data_dir, image_paths, image_shape, len):
+def load_images(data_dir, image_paths, image_shape, length):
     images = None
 
-    for i, image_path in enumerate(image_paths):
-        if i < len :
-            continue
-
+    # print(len(image_paths))
+    for i in range(length, len(image_paths)):
         if i % 1000 == 0:
             print("success load {num} images".format(num=i))
-            np.savetxt('./images_np.csv', images, delimiter=',')
-            
+            np.save('./images_label', images)
+
         try:
             # Load image
-            loaded_image = image.load_img(os.path.join(data_dir, image_path), target_size=image_shape)
+            loaded_image = image.load_img(os.path.join(data_dir, image_paths[i]), target_size=image_shape)
 
             # Convert PIL image to numpy ndarray
             loaded_image = image.img_to_array(loaded_image)
@@ -93,6 +91,6 @@ def load_images(data_dir, image_paths, image_shape, len):
         except Exception as e:
             print("Error:", i, e)
     
-    np.savetxt('./images_np.csv', images, delimiter=',')
+    np.save('./images_label', images)
 
     return images

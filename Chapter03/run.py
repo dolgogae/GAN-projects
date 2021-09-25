@@ -53,7 +53,7 @@ if __name__ == '__main__':
     data_dir = "data"
     wiki_dir = os.path.join(data_dir, "wiki_crop1")
     epochs = 500
-    batch_size = 2
+    batch_size = 64
     image_shape = (64, 64, 3)
     z_shape = 100
     TRAIN_GAN = True
@@ -99,9 +99,9 @@ if __name__ == '__main__':
     classes = len(set(age_cat))
     y = to_categorical(final_age_cat, num_classes=len(set(age_cat)))
 
-    if os.path.isfile('./images_np.csv'):
-        loaded_images = np.loadtxt('./images_np.csv', delimiter=',', dtype=np.int)
-        if len(load_images) < 50000:
+    if os.path.isfile('./images_label.npy'):
+        loaded_images = np.load('./images_label.npy')
+        if len(loaded_images) < len(images):
             loaded_images = load_images(wiki_dir, images, (image_shape[0], image_shape[1]), len(loaded_images))
     else: 
         loaded_images = load_images(wiki_dir, images, (image_shape[0], image_shape[1]), 0)
