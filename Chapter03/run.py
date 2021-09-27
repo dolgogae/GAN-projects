@@ -3,12 +3,13 @@ import time
 
 import matplotlib.pyplot as plt
 import numpy as np
-import tensorflow as tf
-from keras import Input, Model
-from keras.callbacks import TensorBoard
-from keras.layers import Lambda, K
-from keras.optimizers import Adam
-from keras.utils import to_categorical
+import tensorflow.compat.v1 as tf
+from tensorflow.keras import Input, Model
+from tensorflow.keras.callbacks import TensorBoard
+from tensorflow.keras.layers import Lambda
+from keras import backend as K
+from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.utils import to_categorical
 
 from data_extractor import load_data, load_images, age_to_category
 from builder import build_encoder, build_generator, build_discriminator, build_fr_model, build_image_resizer

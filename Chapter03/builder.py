@@ -1,7 +1,8 @@
-from keras.layers import Conv2D, Flatten, Dense, BatchNormalization, Reshape, concatenate, LeakyReLU, Lambda, \
-    K, Activation, UpSampling2D, Dropout
-from keras.applications import InceptionResNetV2
-from keras import Input, Model
+from tensorflow.keras.layers import Conv2D, Flatten, Dense, BatchNormalization, Reshape, concatenate, \
+    LeakyReLU, Lambda, Activation, UpSampling2D, Dropout
+from keras import backend as K
+from tensorflow.keras.applications import InceptionResNetV2
+from tensorflow.keras import Input, Model
 
 def build_encoder():
     """
