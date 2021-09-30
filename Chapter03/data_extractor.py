@@ -64,8 +64,9 @@ def age_to_category(age_list):
     return age_list1
 
 
-def load_images(data_dir, image_paths, image_shape, length):
-    images = None
+def load_images(data_dir, image_paths, image_shape, length, loaded_images):
+    
+    images = loaded_images
 
     # print(len(image_paths))
     for i in range(length, len(image_paths)):

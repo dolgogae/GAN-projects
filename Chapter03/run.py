@@ -31,8 +31,9 @@ def write_log(callback, name, value, batch_no):
     summary_value = summary.value.add()
     summary_value.simple_value = value
     summary_value.tag = name
-    callback.writer.add_summary(summary, batch_no)
-    callback.writer.flush()
+    
+    # callback.writer.add_summary(summary, batch_no)
+    # callback.writer.flush()
 
 
 def save_rgb_img(img, path):
@@ -54,7 +55,7 @@ if __name__ == '__main__':
     data_dir = "data"
     wiki_dir = os.path.join(data_dir, "wiki_crop1")
     epochs = 500
-    batch_size = 64
+    batch_size = 128
     image_shape = (64, 64, 3)
     z_shape = 100
     TRAIN_GAN = True
@@ -84,6 +85,7 @@ if __name__ == '__main__':
     input_label = Input(shape=(6,))
     recons_images = generator([input_z_noise, input_label])
     valid = discriminator([recons_images, input_label])
+
     adversarial_model = Model(inputs=[input_z_noise, input_label], outputs=[valid])
     adversarial_model.compile(loss=['binary_crossentropy'], optimizer=gen_optimizer)
 
@@ -98,14 +100,20 @@ if __name__ == '__main__':
     age_cat = age_to_category(age_list)
     final_age_cat = np.reshape(np.array(age_cat), [len(age_cat), 1])
     classes = len(set(age_cat))
+
     y = to_categorical(final_age_cat, num_classes=len(set(age_cat)))
 
+    loaded_images = None
     if os.path.isfile('./images_label.npy'):
         loaded_images = np.load('./images_label.npy')
+
+        print(len(loaded_images), len(images))
         if len(loaded_images) < len(images):
-            loaded_images = load_images(wiki_dir, images, (image_shape[0], image_shape[1]), len(loaded_images))
+            loaded_images = load_images(wiki_dir, images, (image_shape[0], image_shape[1]), \
+                                        len(loaded_images), loaded_images)
     else: 
-        loaded_images = load_images(wiki_dir, images, (image_shape[0], image_shape[1]), 0)
+        loaded_images = load_images(wiki_dir, images, (image_shape[0], image_shape[1]), \
+                                    0, loaded_images)
 
     # Implement label smoothing
     real_labels = np.ones((batch_size, 1), dtype=np.float32) * 0.9
@@ -124,13 +132,13 @@ if __name__ == '__main__':
             number_of_batches = int(len(loaded_images) / batch_size)
             print("Number of batches:", number_of_batches)
             for index in range(number_of_batches):
-                print("Batch:{}".format(index + 1))
+                # print("Batch:{}".format(index + 1))
 
                 images_batch = loaded_images[index * batch_size:(index + 1) * batch_size]
                 images_batch = images_batch / 127.5 - 1.0
                 images_batch = images_batch.astype(np.float32)
-
                 y_batch = y[index * batch_size:(index + 1) * batch_size]
+                
                 z_noise = np.random.normal(0, 1, size=(batch_size, z_shape))
 
                 """
@@ -144,7 +152,7 @@ if __name__ == '__main__':
                 d_loss_fake = discriminator.train_on_batch([initial_recon_images, y_batch], fake_labels)
 
                 d_loss = 0.5 * np.add(d_loss_real, d_loss_fake)
-                print("d_loss:{}".format(d_loss))
+                # print("d_loss:{}".format(d_loss))
 
                 """
                 Train the generator network
@@ -154,9 +162,9 @@ if __name__ == '__main__':
                 random_labels = np.random.randint(0, 6, batch_size).reshape(-1, 1)
                 random_labels = to_categorical(random_labels, 6)
 
-                g_loss = adversarial_model.train_on_batch([z_noise2, random_labels], [1] * batch_size)
+                g_loss = adversarial_model.train_on_batch([z_noise2, random_labels], np.array([1] * batch_size))
 
-                print("g_loss:{}".format(g_loss))
+                # print("g_loss:{}".format(g_loss))
 
                 gen_losses.append(g_loss)
                 dis_losses.append(d_loss)
