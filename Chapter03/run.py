@@ -7,12 +7,12 @@ import tensorflow.compat.v1 as tf
 from tensorflow.keras import Input, Model
 from tensorflow.keras.callbacks import TensorBoard
 from tensorflow.keras.layers import Lambda
-from keras import backend as K
+from tensorflow.keras import backend as K
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.utils import to_categorical
 
 from data_extractor import load_data, load_images, age_to_category
-from builder import build_encoder, build_generator, build_discriminator, build_fr_model, build_image_resizer
+from models import build_encoder, build_generator, build_discriminator, build_fr_model, build_image_resizer
 
 
 def euclidean_distance_loss(y_true, y_pred):
@@ -49,18 +49,16 @@ def save_rgb_img(img, path):
     plt.savefig(path)
     plt.close()
 
-
-if __name__ == '__main__':
-    # Define hyperparameters
+def main():
     data_dir = "data"
     wiki_dir = os.path.join(data_dir, "wiki_crop1")
     epochs = 500
     batch_size = 128
     image_shape = (64, 64, 3)
     z_shape = 100
-    TRAIN_GAN = True
-    TRAIN_ENCODER = False
-    TRAIN_GAN_WITH_FR = False
+    TRAIN_GAN = False
+    TRAIN_ENCODER = True
+    TRAIN_GAN_WITH_FR = True
     fr_image_shape = (192, 192, 3)
 
     # Define optimizers
@@ -73,10 +71,12 @@ if __name__ == '__main__':
     """
     # Build and compile the discriminator network
     discriminator = build_discriminator()
+    discriminator.summary()
     discriminator.compile(loss=['binary_crossentropy'], optimizer=dis_optimizer)
 
     # Build and compile the generator network
     generator = build_generator()
+    generator.summary()
     generator.compile(loss=['binary_crossentropy'], optimizer=gen_optimizer)
 
     # Build and compile the adversarial model
@@ -87,6 +87,7 @@ if __name__ == '__main__':
     valid = discriminator([recons_images, input_label])
 
     adversarial_model = Model(inputs=[input_z_noise, input_label], outputs=[valid])
+    adversarial_model.summary()
     adversarial_model.compile(loss=['binary_crossentropy'], optimizer=gen_optimizer)
 
     tensorboard = TensorBoard(log_dir="logs/{}".format(time.time()))
@@ -99,7 +100,7 @@ if __name__ == '__main__':
     images, age_list = load_data(wiki_dir=wiki_dir, dataset="wiki")
     age_cat = age_to_category(age_list)
     final_age_cat = np.reshape(np.array(age_cat), [len(age_cat), 1])
-    classes = len(set(age_cat))
+    # classes = len(set(age_cat))
 
     y = to_categorical(final_age_cat, num_classes=len(set(age_cat)))
 
@@ -130,7 +131,7 @@ if __name__ == '__main__':
             dis_losses = []
 
             number_of_batches = int(len(loaded_images) / batch_size)
-            print("Number of batches:", number_of_batches)
+            # print("Number of batches:", number_of_batches)
             for index in range(number_of_batches):
                 # print("Batch:{}".format(index + 1))
 
@@ -334,3 +335,9 @@ if __name__ == '__main__':
         # Save improved weights for both of the networks
         generator.save_weights("generator_optimized.h5")
         encoder.save_weights("encoder_optimized.h5")
+
+
+if __name__ == '__main__':
+    main()
+    # Define hyperparameters
+    
