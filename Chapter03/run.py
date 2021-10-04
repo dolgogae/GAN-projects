@@ -4,16 +4,26 @@ import time
 import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow.compat.v1 as tf
-from tensorflow.keras import Input, Model
-from tensorflow.keras.callbacks import TensorBoard
-from tensorflow.keras.layers import Lambda
-from tensorflow.keras import backend as K
-from tensorflow.keras.optimizers import Adam
-from tensorflow.keras.utils import to_categorical
+from tensorflow.compat.v1.keras import Input, Model
+from tensorflow.compat.v1.keras.callbacks import TensorBoard
+from tensorflow.compat.v1.keras.layers import Lambda, Reshape
+from tensorflow.compat.v1.keras import backend as K
+# from keras.layers import Lambda, K
+from tensorflow.compat.v1.keras.optimizers import Adam
+from tensorflow.compat.v1.keras.utils import to_categorical
 
 from data_extractor import load_data, load_images, age_to_category
-from models import build_encoder, build_generator, build_discriminator, build_fr_model, build_image_resizer
+from models import build_encoder, build_generator, build_discriminator, build_fr_model
 
+
+def build_image_resizer():
+    input_layer = Input(shape=(64, 64, 3))
+
+    resized_images = Lambda(lambda x: K.resize_images(x, height_factor=3, width_factor=3,
+                                                      data_format='channels_last'))(input_layer)
+
+    model = Model(inputs=[input_layer], outputs=[resized_images])
+    return model
 
 def euclidean_distance_loss(y_true, y_pred):
     """
@@ -32,8 +42,8 @@ def write_log(callback, name, value, batch_no):
     summary_value.simple_value = value
     summary_value.tag = name
     
-    # callback.writer.add_summary(summary, batch_no)
-    # callback.writer.flush()
+    callback.writer.add_summary(summary, batch_no)
+    callback.writer.flush()
 
 
 def save_rgb_img(img, path):
@@ -57,7 +67,7 @@ def main():
     image_shape = (64, 64, 3)
     z_shape = 100
     TRAIN_GAN = False
-    TRAIN_ENCODER = True
+    TRAIN_ENCODER = False
     TRAIN_GAN_WITH_FR = True
     fr_image_shape = (192, 192, 3)
 
@@ -277,8 +287,10 @@ def main():
         gen_images = generator([latent0, input_label])
 
         # Resize images to the desired shape
-        resized_images = Lambda(lambda x: K.resize_images(gen_images, height_factor=3, width_factor=3,
-                                                          data_format='channels_last'))(gen_images)
+        # resized_images = Lambda(lambda x: K.resize_images(gen_images, height_factor=3, width_factor=3,
+        #                                                 data_format='channels_last'))(gen_images)
+
+        resized_images = Reshape((192,192,3,))(gen_images)
         embeddings = fr_model(resized_images)
 
         # Create a Keras model and specify the inputs and outputs for the network

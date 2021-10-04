@@ -162,11 +162,3 @@ def build_fr_model(input_shape):
     return model
 
 
-def build_image_resizer():
-    input_layer = Input(shape=(64, 64, 3))
-
-    resized_images = Lambda(lambda x: K.resize_images(x, height_factor=3, width_factor=3,
-                                                      data_format='channels_last'))(input_layer)
-
-    model = Model(inputs=[input_layer], outputs=[resized_images])
-    return model
