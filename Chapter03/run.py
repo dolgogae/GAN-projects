@@ -42,8 +42,8 @@ def write_log(callback, name, value, batch_no):
     summary_value.simple_value = value
     summary_value.tag = name
     
-    callback.writer.add_summary(summary, batch_no)
-    callback.writer.flush()
+    # callback.writer.add_summary(summary, batch_no)
+    # callback.writer.flush()
 
 
 def save_rgb_img(img, path):
@@ -63,7 +63,7 @@ def main():
     data_dir = "data"
     wiki_dir = os.path.join(data_dir, "wiki_crop1")
     epochs = 500
-    batch_size = 128
+    batch_size = 64
     image_shape = (64, 64, 3)
     z_shape = 100
     TRAIN_GAN = False
@@ -287,10 +287,10 @@ def main():
         gen_images = generator([latent0, input_label])
 
         # Resize images to the desired shape
-        # resized_images = Lambda(lambda x: K.resize_images(gen_images, height_factor=3, width_factor=3,
-        #                                                 data_format='channels_last'))(gen_images)
+        resized_images = Lambda(lambda x: K.resize_images(x, height_factor=3, width_factor=3,
+                                                        data_format='channels_last'))(gen_images)
 
-        resized_images = Reshape((192,192,3,))(gen_images)
+        # resized_images = Reshape((192,192,3,))(gen_images)
         embeddings = fr_model(resized_images)
 
         # Create a Keras model and specify the inputs and outputs for the network
